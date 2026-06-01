@@ -1,0 +1,31 @@
+<idea-plugin>
+    <id>com.commitnoteai</id>
+    <name>CommitNoteAI</name>
+    <version>0.1.6</version>
+    <vendor email="support@commitnoteai.local">CommitNoteAI</vendor>
+    <description><![CDATA[Generates concise Chinese commit messages from the selected changes in the Commit tool window.]]></description>
+    <idea-version since-build="251"/>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.commitnoteai.settings.CommitNoteSettings"/>
+        <applicationConfigurable
+                id="commitnoteai.settings"
+                displayName="CommitNoteAI"
+                instance="com.commitnoteai.settings.ui.CommitNoteConfigurable"/>
+        <checkinHandlerFactory implementation="com.commitnoteai.vcs.CommitNoteCheckinHandlerFactory"/>
+    </extensions>
+
+    <actions>
+        <action id="CommitNoteAI.GenerateCommitMessage"
+                class="com.commitnoteai.vcs.GenerateCommitMessageAction"
+                text="生成提交记录"
+                description="根据已勾选的变更生成提交记录"
+                icon="AllIcons.Actions.IntentionBulb">
+            <add-to-group group-id="ChangesView.CommitToolbar"
+                          anchor="after"
+                          relative-to-action="Vcs.MessageActionGroup"/>
+        </action>
+    </actions>
+</idea-plugin>
