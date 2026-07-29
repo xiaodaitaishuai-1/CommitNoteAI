@@ -38,8 +38,9 @@ object CommitChangeFactExtractor {
         val path = change.path.replace('\\', '/')
         if (!path.endsWith(".xml")) return emptyList()
 
-        val beforeElements = parseXmlElements(change.beforeSnippet).associateBy { it.id }
-        val afterElements = parseXmlElements(change.afterSnippet).associateBy { it.id }
+        val evidence = UnifiedDiffEvidence.parse(change.diffText)
+        val beforeElements = parseXmlElements(evidence.beforeText).associateBy { it.id }
+        val afterElements = parseXmlElements(evidence.afterText).associateBy { it.id }
         if (beforeElements.isEmpty() || afterElements.isEmpty()) return emptyList()
 
         val facts = mutableListOf<String>()
@@ -58,8 +59,9 @@ object CommitChangeFactExtractor {
         val path = change.path.replace('\\', '/')
         if (!path.endsWith(".kt") && !path.endsWith(".java")) return emptyList()
 
-        val before = change.beforeSnippet.orEmpty()
-        val after = change.afterSnippet.orEmpty()
+        val evidence = UnifiedDiffEvidence.parse(change.diffText)
+        val before = evidence.beforeText
+        val after = evidence.afterText
         val className = classNameFor(path, before, after)
         val facts = mutableListOf<String>()
 
