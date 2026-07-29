@@ -10,6 +10,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.CheckinProjectPanel
 import com.intellij.openapi.vcs.checkin.CheckinHandler
+import com.intellij.openapi.vcs.changes.Change
 import com.intellij.openapi.vcs.ui.RefreshableOnComponent
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
@@ -65,19 +66,30 @@ private class CommitNotePanel(
             return
         }
 
+        val currentDraft = checkinPanel.getCommitMessage()
         generateButton.isEnabled = false
         statusLabel.text = "正在生成提交记录..."
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating commit message", false) {
             override fun run(indicator: ProgressIndicator) {
                 try {
-                    val generator = CommitNoteGenerator()
-                    val message = generator.generate(project, checkinPanel.getCommitMessage(), changes)
-                    val formatted = CommitMessageFormatter.format(message)
+                    val formatted = generateFormatted(currentDraft, changes)
 
                     com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
-                        checkinPanel.setCommitMessage(formatted)
-                        statusLabel.text = "已生成"
+                        val dialog = CommitMessagePreviewDialog(
+                            project = project,
+                            originalDraft = currentDraft,
+                            generatedMessage = formatted,
+                            regenerateMessage = {
+                                generateFormatted(currentDraft, changes)
+                            },
+                        )
+                        if (dialog.showAndGet()) {
+                            checkinPanel.setCommitMessage(dialog.editedMessage)
+                            statusLabel.text = "已替换提交记录"
+                        } else {
+                            statusLabel.text = "已取消替换"
+                        }
                         generateButton.isEnabled = true
                     }
                 } catch (error: Throwable) {
@@ -89,5 +101,11 @@ private class CommitNotePanel(
                 }
             }
         })
+    }
+
+    private fun generateFormatted(currentDraft: String, changes: List<Change>): String {
+        val generator = CommitNoteGenerator()
+        val message = generator.generate(checkinPanel.project, currentDraft, changes)
+        return CommitMessageFormatter.format(message)
     }
 }

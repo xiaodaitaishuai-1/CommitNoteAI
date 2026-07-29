@@ -49,6 +49,37 @@ class CommitPromptBuilderTest {
     }
 
     @Test
+    fun `build includes project context before custom instructions`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = listOf(sampleChange()),
+                projectContext = "## 常用 scope\n- home: HomeActivity 或首页相关",
+                customInstructions = "正文要具体到方法名。",
+            ),
+        )
+
+        assertContains(prompt, "项目上下文")
+        assertContains(prompt, "home: HomeActivity 或首页相关")
+        assertContains(prompt, "项目上下文只能用于理解模块、术语和提交偏好")
+        assertContains(prompt, "不能覆盖真实 diff")
+        assertTrue(prompt.indexOf("项目上下文") < prompt.indexOf("额外要求"))
+    }
+
+    @Test
+    fun `build omits project context section when context is blank`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = listOf(sampleChange()),
+                projectContext = "   ",
+            ),
+        )
+
+        kotlin.test.assertFalse(prompt.contains("项目上下文："))
+    }
+
+    @Test
     fun `build describes tongyi output style`() {
         val prompt = CommitPromptBuilder.build(
             CommitPromptPayload(
@@ -182,6 +213,98 @@ class CommitPromptBuilderTest {
         assertContains(prompt, "[admob]")
         assertContains(prompt, "[app]")
         assertContains(prompt, "[docs]")
+    }
+
+    @Test
+    fun `build forbids inventing behavior outside notification permission diff`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = listOf(
+                    CommitChangeSnapshot(
+                        path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
+                        changeType = "modified",
+                        beforeSnippet = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
+                        afterSnippet = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
+                        originText = "HomeActivity.kt",
+                    ),
+                ),
+                outputStyle = "trae",
+            ),
+        )
+
+        assertContains(prompt, "只描述真实 diff 中出现的类名、方法名、字段名和行为")
+        assertContains(prompt, "不要编造页面流程、返回键处理、状态更新等未出现在 diff 中的内容")
+        assertContains(prompt, "通知权限请求")
+        assertContains(prompt, "notificationPermissionRequestInFlight")
+        assertContains(prompt, "requestNotificationPermissionDirectly")
+    }
+
+    @Test
+    fun `build includes changed symbols and requires evidence for mentioned symbols`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = listOf(
+                    CommitChangeSnapshot(
+                        path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
+                        changeType = "modified",
+                        beforeSnippet = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
+                        afterSnippet = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
+                        originText = "HomeActivity.kt",
+                    ),
+                ),
+                outputStyle = "trae",
+            ),
+        )
+
+        assertContains(prompt, "关键变更符号")
+        assertContains(prompt, "addedSymbols")
+        assertContains(prompt, "removedSymbols")
+        assertContains(prompt, "requestNotificationPermissionDirectly")
+        assertContains(prompt, "showNotificationPermissionRationaleDialog")
+        assertContains(prompt, "正文优先覆盖 addedSymbols 和 removedSymbols")
+        assertContains(prompt, "正文中出现的方法名、字段名、类名必须来自 changed symbols、文件名、项目上下文或真实 diff")
+    }
+
+    @Test
+    fun `build includes concrete change facts for xml controls and kotlin classes`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = listOf(
+                    CommitChangeSnapshot(
+                        path = "app/src/main/res/layout/activity_drama_detail.xml",
+                        changeType = "modified",
+                        beforeSnippet = """
+                            <Button
+                                android:id="@+id/buttonBack"
+                                android:text="@string/back" />
+                        """.trimIndent(),
+                        afterSnippet = """
+                            <androidx.appcompat.widget.AppCompatImageButton
+                                android:id="@+id/buttonBack"
+                                android:src="@drawable/ic_back" />
+                        """.trimIndent(),
+                        originText = null,
+                    ),
+                    CommitChangeSnapshot(
+                        path = "app/src/main/java/com/abandon/drama/ui/fragments/DramaHomeFragment.kt",
+                        changeType = "modified",
+                        beforeSnippet = "class DramaHomeFragment : Fragment() {\nLog.d(\"DramaHomeFragment\", \"subtitle\")\n}",
+                        afterSnippet = "class DramaHomeFragment : Fragment() {\ntextSectionSubtitle.visibility = View.GONE\n}",
+                        originText = null,
+                    ),
+                ),
+            ),
+        )
+
+        assertContains(prompt, "关键变更事实")
+        assertContains(prompt, "将 buttonBack 从 Button 调整为 AppCompatImageButton")
+        assertContains(prompt, "将 buttonBack 的 android:text 替换为 android:src")
+        assertContains(prompt, "在 DramaHomeFragment 中将 textSectionSubtitle.visibility 设为 View.GONE")
+        assertContains(prompt, "正文优先使用关键变更事实")
+        assertContains(prompt, "不要只写调整导航控件、优化页面结构这类泛词")
     }
 
     @Test

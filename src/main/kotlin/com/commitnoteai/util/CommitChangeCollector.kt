@@ -9,18 +9,21 @@ import com.intellij.openapi.vcs.changes.ContentRevision
 
 object CommitChangeCollector {
     private const val MAX_CHANGES = 20
-    private const val MAX_SNIPPET_CHARS = 1_500
 
     fun collect(project: Project?, changes: List<Change>): List<CommitChangeSnapshot> {
         return changes.take(MAX_CHANGES).map { change ->
             val beforeRevision = change.beforeRevision
             val afterRevision = change.afterRevision
+            val snippets = ChangedSnippetExtractor.extract(
+                before = readContent(beforeRevision),
+                after = readContent(afterRevision),
+            )
 
             CommitChangeSnapshot(
                 path = resolvePath(change),
                 changeType = describeChange(change),
-                beforeSnippet = readSnippet(beforeRevision),
-                afterSnippet = readSnippet(afterRevision),
+                beforeSnippet = snippets.before,
+                afterSnippet = snippets.after,
                 originText = project?.let { change.getOriginText(it) },
             )
         }
@@ -41,12 +44,12 @@ object CommitChangeCollector {
         }
     }
 
-    private fun readSnippet(revision: ContentRevision?): String? {
+    private fun readContent(revision: ContentRevision?): String? {
         if (revision == null || revision is BinaryContentRevision) {
             return null
         }
         return try {
-            revision.content?.take(MAX_SNIPPET_CHARS)
+            revision.content
         } catch (_: VcsException) {
             null
         }

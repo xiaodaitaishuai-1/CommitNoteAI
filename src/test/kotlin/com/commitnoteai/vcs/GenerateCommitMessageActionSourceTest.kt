@@ -16,11 +16,13 @@ class GenerateCommitMessageActionSourceTest {
     }
 
     @Test
-    fun `action keeps draft until typewriter starts and uses chinese background title`() {
+    fun `action previews generated message instead of directly replacing draft`() {
         val source = Files.readString(Path.of("src/main/kotlin/com/commitnoteai/vcs/GenerateCommitMessageAction.kt"))
 
         assertContains(source, "CommitNoteAI 正在生成提交记录")
-        assertContains(source, "commitMessageUi.text = \"\"")
-        assertContains(source, "startTypewriter")
+        assertContains(source, "CommitMessagePreviewDialog")
+        assertContains(source, "commitMessageUi.text = dialog.editedMessage")
+        assertFalse(source.contains("commitMessageUi.text = \"\""))
+        assertFalse(source.contains("startTypewriter"))
     }
 }

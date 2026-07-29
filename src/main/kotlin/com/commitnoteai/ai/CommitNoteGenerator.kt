@@ -1,13 +1,16 @@
 ﻿package com.commitnoteai.ai
 
 import com.commitnoteai.model.CommitMessageWirePayload
+import com.commitnoteai.model.CommitChangeSnapshot
 import com.commitnoteai.model.CommitPromptPayload
 import com.commitnoteai.model.GeneratedCommitMessage
 import com.commitnoteai.platform.PasswordSafeBridge
 import com.commitnoteai.settings.CommitNoteSettings
 import com.commitnoteai.util.CommitChangeCollector
+import com.commitnoteai.util.CommitMessageFactChecker
 import com.commitnoteai.util.CommitMessageSanitizer
 import com.commitnoteai.util.CommitPromptBuilder
+import com.commitnoteai.util.ProjectContextLoader
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.intellij.openapi.application.ApplicationManager
@@ -31,11 +34,14 @@ class CommitNoteGenerator(
         val apiKey = PasswordSafeBridge.getPassword(credentialAttributes())
             ?: throw IllegalStateException("请先在 CommitNoteAI 设置页保存 API Key")
 
+        val collectedChanges = CommitChangeCollector.collect(project, changes)
+        val projectContext = ProjectContextLoader.load(project)
         val promptPayload = CommitPromptPayload(
             currentDraft = currentDraft,
-            changes = CommitChangeCollector.collect(project, changes),
+            changes = collectedChanges,
             outputStyle = settings.outputStyle,
             customInstructions = settings.customInstructions,
+            projectContext = projectContext,
         )
         val request = createRequest(settings, apiKey, promptPayload)
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -44,10 +50,16 @@ class CommitNoteGenerator(
             throw IllegalStateException("接口请求失败 (${response.statusCode()}): ${response.body()}")
         }
 
-        return parseResponse(response.body())
+        return parseResponse(response.body(), collectedChanges, projectContext)
     }
 
     fun generateResponseForTest(body: String): GeneratedCommitMessage = parseResponse(body)
+
+    fun generateResponseForTest(
+        body: String,
+        changes: List<CommitChangeSnapshot>,
+        projectContext: String = "",
+    ): GeneratedCommitMessage = parseResponse(body, changes, projectContext)
 
     private fun createRequest(
         settings: CommitNoteSettings,
@@ -97,9 +109,13 @@ class CommitNoteGenerator(
         return gson.toJson(body)
     }
 
-    private fun parseResponse(body: String): GeneratedCommitMessage {
+    private fun parseResponse(
+        body: String,
+        changes: List<CommitChangeSnapshot> = emptyList(),
+        projectContext: String = "",
+    ): GeneratedCommitMessage {
         val extracted = extractAssistantText(body)
-        return try {
+        val sanitized = try {
             val payload = gson.fromJson(extracted, CommitMessageWirePayload::class.java)
             val title = payload.title?.trim().orEmpty()
             if (title.isBlank()) {
@@ -118,6 +134,11 @@ class CommitNoteGenerator(
                 title = lines.first(),
                 bodyLines = lines.drop(1),
             ))
+        }
+        return if (changes.isEmpty()) {
+            sanitized
+        } else {
+            CommitMessageFactChecker.check(sanitized, changes, projectContext)
         }
     }
 
