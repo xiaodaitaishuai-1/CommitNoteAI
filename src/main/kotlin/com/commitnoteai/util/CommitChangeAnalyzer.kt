@@ -29,7 +29,7 @@ object CommitChangeAnalyzer {
             moduleGroups = moduleGroups,
             suggestedType = suggestedType(changes, moduleGroups),
             suggestedScope = suggestedScope(moduleGroups),
-            priorityHints = priorityHints(normalizedPaths),
+            priorityHints = priorityHints(changes),
         )
     }
 
@@ -75,11 +75,21 @@ object CommitChangeAnalyzer {
         }
     }
 
-    private fun priorityHints(paths: List<String>): List<String> {
+    private fun priorityHints(changes: List<CommitChangeSnapshot>): List<String> {
         val hints = linkedSetOf<String>()
-        paths.forEach { path ->
+        changes.forEach { change ->
+            val path = change.path.replace('\\', '/')
             val filename = path.substringAfterLast('/')
-            if (filename.endsWith("Application.kt") || filename.endsWith("Activity.kt")) {
+            val changeText = listOfNotNull(change.beforeSnippet, change.afterSnippet, change.originText)
+                .joinToString("\n")
+                .lowercase()
+            if (changeText.contains("notificationpermission") ||
+                changeText.contains("notification_permission") ||
+                changeText.contains("post_notifications")
+            ) {
+                hints += "通知权限请求"
+            }
+            if (filename.endsWith("Application.kt")) {
                 hints += "初始化入口"
             }
             if (filename.endsWith("Controller.kt") || filename.endsWith("Runtime.kt") || filename.endsWith("AdsRuntime.kt")) {

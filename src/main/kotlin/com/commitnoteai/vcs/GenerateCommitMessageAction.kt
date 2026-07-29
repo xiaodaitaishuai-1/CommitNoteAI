@@ -10,9 +10,9 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.VcsDataKeys
+import com.intellij.openapi.vcs.changes.Change
 import com.intellij.vcs.commit.CommitWorkflowUi
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.swing.Timer
 
 class GenerateCommitMessageAction : DumbAwareAction() {
     private val generating = AtomicBoolean(false)
@@ -50,10 +50,19 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CommitNoteAI 正在生成提交记录", false) {
             override fun run(indicator: ProgressIndicator) {
                 try {
-                    val message = CommitNoteGenerator().generate(project, currentDraft, changes)
-                    val formatted = CommitMessageFormatter.format(message)
-                    com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
-                        startTypewriter(workflowUi, formatted)
+                    val formatted = generateFormatted(project, currentDraft, changes)
+                    finish(workflowUi) {
+                        val dialog = CommitMessagePreviewDialog(
+                            project = project,
+                            originalDraft = currentDraft,
+                            generatedMessage = formatted,
+                            regenerateMessage = {
+                                generateFormatted(project, currentDraft, changes)
+                            },
+                        )
+                        if (dialog.showAndGet()) {
+                            commitMessageUi.text = dialog.editedMessage
+                        }
                     }
                 } catch (error: Throwable) {
                     finish(workflowUi) {
@@ -62,6 +71,15 @@ class GenerateCommitMessageAction : DumbAwareAction() {
                 }
             }
         })
+    }
+
+    private fun generateFormatted(
+        project: com.intellij.openapi.project.Project,
+        currentDraft: String,
+        changes: List<Change>,
+    ): String {
+        val message = CommitNoteGenerator().generate(project, currentDraft, changes)
+        return CommitMessageFormatter.format(message)
     }
 
     private fun finish(workflowUi: CommitWorkflowUi, onUiThread: () -> Unit) {
@@ -74,21 +92,5 @@ class GenerateCommitMessageAction : DumbAwareAction() {
                 }
             }
         }
-    }
-
-    private fun startTypewriter(workflowUi: CommitWorkflowUi, target: String) {
-        val commitMessageUi = workflowUi.commitMessageUi
-        var state = TypewriterText.State(target = target, visibleLength = 0)
-        commitMessageUi.text = ""
-        val timer = Timer(18, null)
-        timer.addActionListener {
-            state = TypewriterText.step(state, chunkSize = 3)
-            commitMessageUi.text = state.visibleText
-            if (state.isComplete) {
-                timer.stop()
-                generating.set(false)
-            }
-        }
-        timer.start()
     }
 }

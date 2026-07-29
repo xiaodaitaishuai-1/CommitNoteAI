@@ -3,12 +3,15 @@
 import com.commitnoteai.ai.ModelListClient
 import com.commitnoteai.platform.PasswordSafeBridge
 import com.commitnoteai.settings.CommitNoteSettings
+import com.commitnoteai.util.ProjectContextLoader
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
@@ -26,8 +29,9 @@ import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTextField
+import java.nio.file.Path
 
-class CommitNoteConfigurable : Configurable {
+class CommitNoteConfigurable(private val project: Project? = null) : Configurable {
     private val settings = ApplicationManager.getApplication().getService(CommitNoteSettings::class.java)
 
     private val baseUrlField = JBTextField()
@@ -42,6 +46,7 @@ class CommitNoteConfigurable : Configurable {
     }
     private val apiKeyField = JBTextField()
     private val fetchModelsButton = JButton("获取模型列表")
+    private val createContextButton = JButton("创建上下文模板")
     private val hintLabel = JLabel("已保存的 Key 会脱敏显示；输入新 Key 后点击 Apply 可替换。").apply {
         foreground = JBColor.GRAY
     }
@@ -125,8 +130,10 @@ class CommitNoteConfigurable : Configurable {
         addComboRow("Reasoning Effort", reasoningEffortBox, 4)
         addComboRow("输出样式", outputStyleBox, 5)
         addTextAreaRow("AI 关键词/偏好", customInstructionsArea, 6)
-        addRow("API Key", apiKeyField, 7)
-        addHintRow(8)
+        addButtonRow(createContextButton, 7)
+        createContextButton.addActionListener { createProjectContextTemplate() }
+        addRow("API Key", apiKeyField, 8)
+        addHintRow(9)
     }
 
     private fun selectedOutputStyle(): String {
@@ -281,6 +288,30 @@ class CommitNoteConfigurable : Configurable {
         if (!selection.isNullOrBlank()) {
             modelField.text = selection
         }
+    }
+
+    private fun createProjectContextTemplate() {
+        val basePath = resolveProjectBasePath()
+        if (basePath == null) {
+            Messages.showErrorDialog(panel, "请先打开一个项目后再创建上下文模板", "CommitNoteAI")
+            return
+        }
+
+        try {
+            val created = ProjectContextLoader.createTemplate(Path.of(basePath))
+            if (created) {
+                Messages.showInfoMessage(panel, "已创建 ${ProjectContextLoader.FILE_NAME}", "CommitNoteAI")
+            } else {
+                Messages.showInfoMessage(panel, "${ProjectContextLoader.FILE_NAME} 已存在，不会覆盖", "CommitNoteAI")
+            }
+        } catch (error: Throwable) {
+            Messages.showErrorDialog(panel, error.message ?: "创建上下文模板失败", "CommitNoteAI")
+        }
+    }
+
+    private fun resolveProjectBasePath(): String? {
+        project?.basePath?.let { return it }
+        return ProjectManager.getInstance().openProjects.firstOrNull { !it.isDisposed }?.basePath
     }
 
     companion object {

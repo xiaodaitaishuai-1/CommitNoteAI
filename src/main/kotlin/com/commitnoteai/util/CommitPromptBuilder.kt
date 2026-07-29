@@ -7,6 +7,8 @@ object CommitPromptBuilder {
     fun build(payload: CommitPromptPayload): String {
         val style = CommitNoteSettings.normalizeOutputStyle(payload.outputStyle)
         val analysis = CommitChangeAnalyzer.analyze(payload.changes)
+        val changedSymbols = ChangedSymbolExtractor.extract(payload.changes)
+        val changeFacts = CommitChangeFactExtractor.extract(payload.changes)
         val builder = StringBuilder()
         builder.appendLine("请根据下面的代码变更生成提交记录。")
         builder.appendLine("输出必须是严格 JSON，格式如下：")
@@ -23,11 +25,28 @@ object CommitPromptBuilder {
         appendTidyChecklistRules(builder)
         appendStyleRules(builder, style)
         builder.appendLine("- bodyLines 每行描述一个具体变更，例如：删除了 updateAdIsShowing 方法。")
+        builder.appendLine("- 只描述真实 diff 中出现的类名、方法名、字段名和行为。")
+        builder.appendLine("- 不要编造页面流程、返回键处理、状态更新等未出现在 diff 中的内容。")
+        builder.appendLine("- 如果只能看到局部改动，就只总结局部改动，不要推断整个文件职责。")
+        builder.appendLine("- 正文优先覆盖 addedSymbols 和 removedSymbols。")
+        builder.appendLine("- 正文优先使用关键变更事实，写清是什么控件换成什么控件，或哪个类修改了什么。")
+        builder.appendLine("- 不要只写调整导航控件、优化页面结构这类泛词；必须带上控件 id、类名、方法名、字段名或资源名。")
+        builder.appendLine("- 正文中出现的方法名、字段名、类名必须来自 changed symbols、文件名、项目上下文或真实 diff。")
         builder.appendLine("- 优先写新增能力、接口/运行时扩展、初始化入口、配置依赖、布局资源、文档同步。")
         builder.appendLine("- 不要输出 Markdown，不要输出代码块，不要解释。")
         builder.appendLine()
 
         appendAnalysis(builder, analysis)
+        appendChangedSymbols(builder, changedSymbols)
+        appendChangeFacts(builder, changeFacts)
+
+        val projectContext = payload.projectContext.trim()
+        if (projectContext.isNotBlank()) {
+            builder.appendLine("项目上下文：")
+            builder.appendLine("项目上下文只能用于理解模块、术语和提交偏好，不能覆盖真实 diff；提交内容仍必须以已勾选 diff 为准。")
+            builder.appendLine(projectContext)
+            builder.appendLine()
+        }
 
         val customInstructions = payload.customInstructions.trim()
         if (customInstructions.isNotBlank()) {
@@ -115,6 +134,30 @@ object CommitPromptBuilder {
                 builder.appendLine("- $path")
             }
         }
+        builder.appendLine()
+    }
+
+    private fun appendChangedSymbols(builder: StringBuilder, symbols: ChangedSymbols) {
+        if (symbols.addedSymbols.isEmpty() && symbols.removedSymbols.isEmpty() && symbols.keptSymbols.isEmpty()) {
+            return
+        }
+        builder.appendLine("关键变更符号：")
+        builder.appendLine("- addedSymbols: ${symbols.addedSymbols.take(20).joinToString(", ")}")
+        builder.appendLine("- removedSymbols: ${symbols.removedSymbols.take(20).joinToString(", ")}")
+        builder.appendLine("- keptSymbols: ${symbols.keptSymbols.take(20).joinToString(", ")}")
+        builder.appendLine()
+    }
+
+    private fun appendChangeFacts(builder: StringBuilder, facts: List<String>) {
+        if (facts.isEmpty()) {
+            return
+        }
+        builder.appendLine("关键变更事实：")
+        facts.take(20).forEach { fact ->
+            builder.appendLine("- $fact")
+        }
+        builder.appendLine("- 示例正文：将 buttonBack 从 Button 调整为 AppCompatImageButton")
+        builder.appendLine("- 示例正文：在 DramaHomeFragment 中隐藏 textSectionSubtitle")
         builder.appendLine()
     }
 

@@ -55,12 +55,34 @@ class CommitChangeAnalyzerTest {
         assertEquals(null, analysis.suggestedScope)
     }
 
-    private fun change(path: String, type: String): CommitChangeSnapshot {
+    @Test
+    fun `analyze recognizes notification permission changes without generic activity hints`() {
+        val analysis = CommitChangeAnalyzer.analyze(
+            listOf(
+                change(
+                    path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
+                    type = "modified",
+                    before = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
+                    after = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
+                ),
+            ),
+        )
+
+        assertContains(analysis.priorityHints, "通知权限请求")
+        kotlin.test.assertFalse(analysis.priorityHints.contains("初始化入口"))
+    }
+
+    private fun change(
+        path: String,
+        type: String,
+        before: String? = null,
+        after: String? = null,
+    ): CommitChangeSnapshot {
         return CommitChangeSnapshot(
             path = path,
             changeType = type,
-            beforeSnippet = null,
-            afterSnippet = null,
+            beforeSnippet = before,
+            afterSnippet = after,
             originText = null,
         )
     }

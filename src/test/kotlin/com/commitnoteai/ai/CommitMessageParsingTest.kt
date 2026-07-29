@@ -1,5 +1,6 @@
 package com.commitnoteai.ai
 
+import com.commitnoteai.model.CommitChangeSnapshot
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -53,5 +54,35 @@ class CommitMessageParsingTest {
         )
 
         assertContains(body, """"reasoning":{"effort":"high"}""")
+    }
+
+    @Test
+    fun `parse filters unsupported body lines when changes are provided`() {
+        val body = """
+            {
+              "choices": [
+                {
+                  "message": {
+                    "content": "{\"title\":\"refactor(home): 简化通知权限请求流程\",\"bodyLines\":[\"调整 HomeActivity 的返回键处理逻辑\",\"直接调用 requestNotificationPermissionDirectly 替代对话框逻辑\"]}"
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val message = CommitNoteGenerator().generateResponseForTest(
+            body = body,
+            changes = listOf(
+                CommitChangeSnapshot(
+                    path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
+                    changeType = "modified",
+                    beforeSnippet = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
+                    afterSnippet = "requestNotificationPermissionDirectly(notificationPermissionLauncher)",
+                    originText = "HomeActivity.kt",
+                ),
+            ),
+        )
+
+        assertEquals(listOf("直接调用 requestNotificationPermissionDirectly 替代对话框逻辑"), message.bodyLines)
     }
 }
