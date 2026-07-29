@@ -26,6 +26,7 @@ data class CommitPromptPayload(
     val outputStyle: String = "tongyi",
     val customInstructions: String = "",
     val projectContext: String = "",
+    val changeCollection: CommitChangeCollection = CommitChangeCollection(changes),
 )
 
 data class GeneratedCommitMessage(

@@ -50,7 +50,7 @@ object CommitMessageFactChecker {
                 val codeSymbols = symbols - fileSymbols
                 val keywords = linkedSetOf<String>()
                 val diffText = changes.joinToString("\n") { change ->
-                    listOf(change.path, change.diffText).joinToString("\n")
+                    listOf(change.path, change.evidenceText()).joinToString("\n")
                 }
                 changes.forEach { change ->
                     val path = change.path.replace('\\', '/')
@@ -58,7 +58,7 @@ object CommitMessageFactChecker {
                     keywords += filename
                     keywords += filename.substringBeforeLast('.')
                     keywords += path.substringBefore('/').takeIf { it.isNotBlank() }.orEmpty()
-                    keywords += extractChineseKeywords(change.diffText)
+                    keywords += extractChineseKeywords(change.evidenceText())
                 }
                 keywords += facts
                 keywords += extractChineseKeywords(projectContext)

@@ -27,7 +27,7 @@ object ChangedSymbolExtractor {
         val beforeSymbols = linkedSetOf<String>()
         val afterSymbols = linkedSetOf<String>()
         changes.forEach { change ->
-            val evidence = UnifiedDiffEvidence.parse(change.diffText)
+            val evidence = UnifiedDiffEvidence.parse(change.evidenceText())
             beforeSymbols += extractFromText(evidence.removedLines.joinToString("\n"))
             afterSymbols += extractFromText(evidence.addedLines.joinToString("\n"))
             afterSymbols += extractFromPath(change.path)

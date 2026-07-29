@@ -1,12 +1,40 @@
 package com.commitnoteai.util
 
 import com.commitnoteai.model.CommitChangeSnapshot
+import com.commitnoteai.model.CommitChangeCollection
+import com.commitnoteai.model.CommitChangeSkip
 import com.commitnoteai.model.CommitPromptPayload
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
 
 class CommitPromptBuilderTest {
+    @Test
+    fun `build renders unified diff truncation and skipped changes`() {
+        val prompt = CommitPromptBuilder.build(
+            CommitPromptPayload(
+                currentDraft = "",
+                changes = emptyList(),
+                changeCollection = CommitChangeCollection(
+                    changes = listOf(
+                        CommitChangeSnapshot(
+                            path = "src/Login.kt",
+                            changeType = "modified",
+                            diffText = "@@ -1 +1 @@\n-old\n+new",
+                        ),
+                    ),
+                    skippedChanges = listOf(CommitChangeSkip("logo.png", "binary")),
+                    isTruncated = true,
+                ),
+            ),
+        )
+
+        assertContains(prompt, "统一 diff")
+        assertContains(prompt, "+new")
+        assertContains(prompt, "上下文已截断")
+        assertContains(prompt, "logo.png")
+    }
+
     @Test
     fun `build includes change details and json contract`() {
         val prompt = CommitPromptBuilder.build(

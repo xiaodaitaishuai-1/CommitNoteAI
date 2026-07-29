@@ -1,5 +1,7 @@
 package com.commitnoteai.util
 
+import com.commitnoteai.model.CommitChangeSnapshot
+
 data class UnifiedDiffEvidence(
     val path: String,
     val addedLines: List<String>,
@@ -47,4 +49,11 @@ data class UnifiedDiffEvidence(
                 .orEmpty()
         }
     }
+}
+
+internal fun CommitChangeSnapshot.evidenceText(): String {
+    if (diffText.isNotBlank()) return diffText
+    val before = beforeSnippet.orEmpty().lineSequence().joinToString("\n") { "-$it" }
+    val after = afterSnippet.orEmpty().lineSequence().joinToString("\n") { "+$it" }
+    return listOf("@@ -1 +1 @@", before, after).filter { it.isNotBlank() }.joinToString("\n")
 }

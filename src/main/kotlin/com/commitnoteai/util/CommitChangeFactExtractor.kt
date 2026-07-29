@@ -38,7 +38,7 @@ object CommitChangeFactExtractor {
         val path = change.path.replace('\\', '/')
         if (!path.endsWith(".xml")) return emptyList()
 
-        val evidence = UnifiedDiffEvidence.parse(change.diffText)
+        val evidence = UnifiedDiffEvidence.parse(change.evidenceText())
         val beforeElements = parseXmlElements(evidence.beforeText).associateBy { it.id }
         val afterElements = parseXmlElements(evidence.afterText).associateBy { it.id }
         if (beforeElements.isEmpty() || afterElements.isEmpty()) return emptyList()
@@ -59,7 +59,7 @@ object CommitChangeFactExtractor {
         val path = change.path.replace('\\', '/')
         if (!path.endsWith(".kt") && !path.endsWith(".java")) return emptyList()
 
-        val evidence = UnifiedDiffEvidence.parse(change.diffText)
+        val evidence = UnifiedDiffEvidence.parse(change.evidenceText())
         val before = evidence.beforeText
         val after = evidence.afterText
         val className = classNameFor(path, before, after)
