@@ -25,4 +25,12 @@ class GenerateCommitMessageActionSourceTest {
         assertFalse(source.contains("commitMessageUi.text = \"\""))
         assertFalse(source.contains("startTypewriter"))
     }
+
+    @Test
+    fun `action includes selected unversioned files in commit generation`() {
+        val source = Files.readString(Path.of("src/main/kotlin/com/commitnoteai/vcs/GenerateCommitMessageAction.kt"))
+
+        assertContains(source, "workflowUi.getIncludedUnversionedFiles()")
+        assertContains(source, "unversionedFiles")
+    }
 }

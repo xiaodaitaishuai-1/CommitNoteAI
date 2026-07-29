@@ -80,9 +80,7 @@ object CommitChangeAnalyzer {
         changes.forEach { change ->
             val path = change.path.replace('\\', '/')
             val filename = path.substringAfterLast('/')
-            val changeText = listOfNotNull(change.beforeSnippet, change.afterSnippet, change.originText)
-                .joinToString("\n")
-                .lowercase()
+            val changeText = change.evidenceText().lowercase()
             if (changeText.contains("notificationpermission") ||
                 changeText.contains("notification_permission") ||
                 changeText.contains("post_notifications")

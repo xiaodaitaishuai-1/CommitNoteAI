@@ -56,17 +56,15 @@ class CommitMessageFactCheckerTest {
                 CommitChangeSnapshot(
                     path = "app/src/main/res/layout/activity_drama_detail.xml",
                     changeType = "modified",
-                    beforeSnippet = """
-                        <Button
-                            android:id="@+id/buttonBack"
-                            android:text="@string/back" />
+                    diffText = """
+                        @@ -1,3 +1,3 @@
+                        -<Button
+                        -    android:id="@+id/buttonBack"
+                        -    android:text="@string/back" />
+                        +<androidx.appcompat.widget.AppCompatImageButton
+                        +    android:id="@+id/buttonBack"
+                        +    android:src="@drawable/ic_back" />
                     """.trimIndent(),
-                    afterSnippet = """
-                        <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/buttonBack"
-                            android:src="@drawable/ic_back" />
-                    """.trimIndent(),
-                    originText = null,
                 ),
             ),
             projectContext = "",
@@ -97,6 +95,26 @@ class CommitMessageFactCheckerTest {
     }
 
     @Test
+    fun `check keeps risky claim when it appears in unified diff`() {
+        val checked = CommitMessageFactChecker.check(
+            message = GeneratedCommitMessage(
+                title = "fix(home): 调整返回键处理",
+                bodyLines = listOf("调整 HomeActivity 的返回键处理逻辑"),
+            ),
+            changes = listOf(
+                CommitChangeSnapshot(
+                    path = "app/src/main/java/HomeActivity.kt",
+                    changeType = "modified",
+                    diffText = "@@ -1 +1 @@\n+// 返回键处理",
+                ),
+            ),
+            projectContext = "",
+        )
+
+        assertEquals(listOf("调整 HomeActivity 的返回键处理逻辑"), checked.bodyLines)
+    }
+
+    @Test
     fun `check keeps lines that mention project context keywords`() {
         val checked = CommitMessageFactChecker.check(
             message = GeneratedCommitMessage(
@@ -115,9 +133,12 @@ class CommitMessageFactCheckerTest {
             CommitChangeSnapshot(
                 path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
                 changeType = "modified",
-                beforeSnippet = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
-                afterSnippet = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
-                originText = "HomeActivity.kt",
+                diffText = """
+                    @@ -1 +1,2 @@
+                    -showNotificationPermissionRationaleDialog(notificationPermissionLauncher)
+                    +notificationPermissionRequestInFlight = true
+                    +requestNotificationPermissionDirectly(notificationPermissionLauncher)
+                """.trimIndent(),
             ),
         )
     }

@@ -6,9 +6,10 @@ import com.commitnoteai.settings.CommitNoteSettings
 object CommitPromptBuilder {
     fun build(payload: CommitPromptPayload): String {
         val style = CommitNoteSettings.normalizeOutputStyle(payload.outputStyle)
-        val analysis = CommitChangeAnalyzer.analyze(payload.changes)
-        val changedSymbols = ChangedSymbolExtractor.extract(payload.changes)
-        val changeFacts = CommitChangeFactExtractor.extract(payload.changes)
+        val changeCollection = payload.changeCollection
+        val analysis = CommitChangeAnalyzer.analyze(changeCollection.changes)
+        val changedSymbols = ChangedSymbolExtractor.extract(changeCollection.changes)
+        val changeFacts = CommitChangeFactExtractor.extract(changeCollection.changes)
         val builder = StringBuilder()
         builder.appendLine("请根据下面的代码变更生成提交记录。")
         builder.appendLine("输出必须是严格 JSON，格式如下：")
@@ -61,19 +62,26 @@ object CommitPromptBuilder {
             builder.appendLine()
         }
 
-        builder.appendLine("变更摘要：")
-        payload.changes.forEachIndexed { index, change ->
+        builder.appendLine("统一 diff：")
+        changeCollection.changes.forEachIndexed { index, change ->
             builder.appendLine("${index + 1}. [${change.changeType}] ${change.path}")
-            change.originText?.takeIf { it.isNotBlank() }?.let {
-                builder.appendLine("   origin: ${clip(it)}")
-            }
-            change.beforeSnippet?.takeIf { it.isNotBlank() }?.let {
-                builder.appendLine("   before: ${clip(it)}")
-            }
-            change.afterSnippet?.takeIf { it.isNotBlank() }?.let {
-                builder.appendLine("   after: ${clip(it)}")
+            if (change.diffText.isNotBlank()) {
+                builder.appendLine(change.diffText)
+            } else {
+                change.originText?.takeIf { it.isNotBlank() }?.let { builder.appendLine("origin: ${clip(it)}") }
+                change.beforeSnippet?.takeIf { it.isNotBlank() }?.let { builder.appendLine("before: ${clip(it)}") }
+                change.afterSnippet?.takeIf { it.isNotBlank() }?.let { builder.appendLine("after: ${clip(it)}") }
             }
             builder.appendLine()
+        }
+        if (changeCollection.isTruncated) {
+            builder.appendLine("上下文已截断，未分析其余已选变更。")
+        }
+        if (changeCollection.skippedChanges.isNotEmpty()) {
+            builder.appendLine("跳过的变更：")
+            changeCollection.skippedChanges.forEach { skipped ->
+                builder.appendLine("- ${skipped.path}: ${skipped.reason}")
+            }
         }
 
         return builder.toString().trim()

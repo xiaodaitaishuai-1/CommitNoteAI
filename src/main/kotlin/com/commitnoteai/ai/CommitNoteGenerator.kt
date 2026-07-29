@@ -16,6 +16,7 @@ import com.google.gson.JsonSyntaxException
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.changes.Change
 import java.net.URI
 import java.net.http.HttpClient
@@ -29,19 +30,29 @@ class CommitNoteGenerator(
         .build(),
     private val gson: Gson = Gson(),
 ) {
-    fun generate(project: Project?, currentDraft: String, changes: List<Change>): GeneratedCommitMessage {
+    fun generate(
+        project: Project?,
+        currentDraft: String,
+        changes: List<Change>,
+        unversionedFiles: List<FilePath> = emptyList(),
+    ): GeneratedCommitMessage {
+        val activeProject = project ?: throw IllegalStateException("请先打开项目后再生成提交记录")
+        val collectedChanges = CommitChangeCollector.collectDiffs(activeProject, changes, unversionedFiles)
+        if (collectedChanges.changes.isEmpty()) {
+            throw IllegalStateException("没有可用于生成提交记录的文本变更")
+        }
         val settings = ApplicationManager.getApplication().getService(CommitNoteSettings::class.java)
         val apiKey = PasswordSafeBridge.getPassword(credentialAttributes())
             ?: throw IllegalStateException("请先在 CommitNoteAI 设置页保存 API Key")
 
-        val collectedChanges = CommitChangeCollector.collect(project, changes)
         val projectContext = ProjectContextLoader.load(project)
         val promptPayload = CommitPromptPayload(
             currentDraft = currentDraft,
-            changes = collectedChanges,
+            changes = collectedChanges.changes,
             outputStyle = settings.outputStyle,
             customInstructions = settings.customInstructions,
             projectContext = projectContext,
+            changeCollection = collectedChanges,
         )
         val request = createRequest(settings, apiKey, promptPayload)
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -50,7 +61,7 @@ class CommitNoteGenerator(
             throw IllegalStateException("接口请求失败 (${response.statusCode()}): ${response.body()}")
         }
 
-        return parseResponse(response.body(), collectedChanges, projectContext)
+        return parseResponse(response.body(), collectedChanges.changes, projectContext)
     }
 
     fun generateResponseForTest(body: String): GeneratedCommitMessage = parseResponse(body)

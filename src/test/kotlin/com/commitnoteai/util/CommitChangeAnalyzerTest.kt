@@ -62,8 +62,12 @@ class CommitChangeAnalyzerTest {
                 change(
                     path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
                     type = "modified",
-                    before = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
-                    after = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
+                    diff = """
+                        @@ -1 +1,2 @@
+                        -showNotificationPermissionRationaleDialog(notificationPermissionLauncher)
+                        +notificationPermissionRequestInFlight = true
+                        +requestNotificationPermissionDirectly(notificationPermissionLauncher)
+                    """.trimIndent(),
                 ),
             ),
         )
@@ -77,6 +81,7 @@ class CommitChangeAnalyzerTest {
         type: String,
         before: String? = null,
         after: String? = null,
+        diff: String = "",
     ): CommitChangeSnapshot {
         return CommitChangeSnapshot(
             path = path,
@@ -84,6 +89,7 @@ class CommitChangeAnalyzerTest {
             beforeSnippet = before,
             afterSnippet = after,
             originText = null,
+            diffText = diff,
         )
     }
 }

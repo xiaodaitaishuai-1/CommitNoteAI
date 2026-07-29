@@ -13,9 +13,12 @@ class ChangedSymbolExtractorTest {
                 CommitChangeSnapshot(
                     path = "app/src/main/java/com/clarity/photo/activity/HomeActivity.kt",
                     changeType = "modified",
-                    beforeSnippet = "showNotificationPermissionRationaleDialog(notificationPermissionLauncher)",
-                    afterSnippet = "notificationPermissionRequestInFlight = true\nrequestNotificationPermissionDirectly(notificationPermissionLauncher)",
-                    originText = null,
+                    diffText = """
+                        @@ -1 +1,2 @@
+                        -showNotificationPermissionRationaleDialog(notificationPermissionLauncher)
+                        +notificationPermissionRequestInFlight = true
+                        +requestNotificationPermissionDirectly(notificationPermissionLauncher)
+                    """.trimIndent(),
                 ),
             ),
         )
@@ -33,9 +36,11 @@ class ChangedSymbolExtractorTest {
                 CommitChangeSnapshot(
                     path = "app/src/main/java/Foo.kt",
                     changeType = "modified",
-                    beforeSnippet = "private fun oldName() = true",
-                    afterSnippet = "private fun newName() = false",
-                    originText = null,
+                    diffText = """
+                        @@ -1 +1 @@
+                        -private fun oldName() = true
+                        +private fun newName() = false
+                    """.trimIndent(),
                 ),
             ),
         )

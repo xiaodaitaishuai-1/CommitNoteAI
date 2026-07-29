@@ -15,6 +15,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
+        bundledModule("intellij.platform.vcs.impl")
+
         val localIdePath = providers.gradleProperty("localIdePath").orNull
         if (!localIdePath.isNullOrBlank()) {
             local(localIdePath)

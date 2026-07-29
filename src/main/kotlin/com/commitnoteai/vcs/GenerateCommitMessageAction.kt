@@ -21,7 +21,8 @@ class GenerateCommitMessageAction : DumbAwareAction() {
 
     override fun update(e: AnActionEvent) {
         val workflowUi = e.getData(VcsDataKeys.COMMIT_WORKFLOW_UI)
-        val hasIncludedChanges = workflowUi?.getIncludedChanges()?.isNotEmpty() == true
+        val hasIncludedChanges = workflowUi?.getIncludedChanges()?.isNotEmpty() == true ||
+            workflowUi?.getIncludedUnversionedFiles()?.isNotEmpty() == true
         val isGenerating = generating.get()
         e.presentation.isVisible = workflowUi != null
         e.presentation.isEnabled = hasIncludedChanges && !isGenerating
@@ -36,7 +37,8 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         val project = e.getData(CommonDataKeys.PROJECT) ?: return
         val workflowUi = e.getData(VcsDataKeys.COMMIT_WORKFLOW_UI) ?: return
         val changes = workflowUi.getIncludedChanges()
-        if (changes.isEmpty()) {
+        val unversionedFiles = workflowUi.getIncludedUnversionedFiles()
+        if (changes.isEmpty() && unversionedFiles.isEmpty()) {
             Messages.showInfoMessage(project, "当前没有勾选的变更。", "CommitNoteAI")
             return
         }
@@ -50,14 +52,14 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "CommitNoteAI 正在生成提交记录", false) {
             override fun run(indicator: ProgressIndicator) {
                 try {
-                    val formatted = generateFormatted(project, currentDraft, changes)
+                    val formatted = generateFormatted(project, currentDraft, changes, unversionedFiles)
                     finish(workflowUi) {
                         val dialog = CommitMessagePreviewDialog(
                             project = project,
                             originalDraft = currentDraft,
                             generatedMessage = formatted,
                             regenerateMessage = {
-                                generateFormatted(project, currentDraft, changes)
+                                generateFormatted(project, currentDraft, changes, unversionedFiles)
                             },
                         )
                         if (dialog.showAndGet()) {
@@ -77,8 +79,9 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         project: com.intellij.openapi.project.Project,
         currentDraft: String,
         changes: List<Change>,
+        unversionedFiles: List<com.intellij.openapi.vcs.FilePath>,
     ): String {
-        val message = CommitNoteGenerator().generate(project, currentDraft, changes)
+        val message = CommitNoteGenerator().generate(project, currentDraft, changes, unversionedFiles)
         return CommitMessageFormatter.format(message)
     }
 
