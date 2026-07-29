@@ -7,7 +7,15 @@ data class CommitChangeSnapshot(
     val beforeSnippet: String? = null,
     val afterSnippet: String? = null,
     val originText: String? = null,
-)
+) {
+    constructor(
+        path: String,
+        changeType: String,
+        beforeSnippet: String?,
+        afterSnippet: String?,
+        originText: String?,
+    ) : this(path, changeType, "", beforeSnippet, afterSnippet, originText)
+}
 
 data class CommitChangeSkip(
     val path: String,
