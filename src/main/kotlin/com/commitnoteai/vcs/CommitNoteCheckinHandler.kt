@@ -76,21 +76,14 @@ private class CommitNotePanel(
                     val formatted = generateFormatted(currentDraft, changes)
 
                     com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
-                        val dialog = CommitMessagePreviewDialog(
-                            project = project,
-                            originalDraft = currentDraft,
-                            generatedMessage = formatted,
-                            regenerateMessage = {
-                                generateFormatted(currentDraft, changes)
+                        CommitMessageTypewriter.start(
+                            target = formatted,
+                            updateText = { text -> checkinPanel.setCommitMessage(text) },
+                            onCompleted = {
+                                statusLabel.text = "已填充提交记录"
+                                generateButton.isEnabled = true
                             },
                         )
-                        if (dialog.showAndGet()) {
-                            checkinPanel.setCommitMessage(dialog.editedMessage)
-                            statusLabel.text = "已替换提交记录"
-                        } else {
-                            statusLabel.text = "已取消替换"
-                        }
-                        generateButton.isEnabled = true
                     }
                 } catch (error: Throwable) {
                     com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
@@ -109,3 +102,4 @@ private class CommitNotePanel(
         return CommitMessageFormatter.format(message)
     }
 }
+
