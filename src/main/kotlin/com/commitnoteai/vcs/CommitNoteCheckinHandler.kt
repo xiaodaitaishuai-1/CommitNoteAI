@@ -102,4 +102,3 @@ private class CommitNotePanel(
         return CommitMessageFormatter.format(message)
     }
 }
-
