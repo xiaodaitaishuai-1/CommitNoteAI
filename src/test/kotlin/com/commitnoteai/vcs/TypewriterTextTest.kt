@@ -18,4 +18,24 @@ class TypewriterTextTest {
         assertEquals("abcdef", state.visibleText)
         assertTrue(state.isComplete)
     }
+
+    @Test
+    fun `step treats zero and negative chunk sizes as one character`() {
+        val initial = TypewriterText.State(target = "abc", visibleLength = 0)
+
+        assertEquals("a", TypewriterText.step(initial, chunkSize = 0).visibleText)
+        assertEquals("a", TypewriterText.step(initial, chunkSize = -3).visibleText)
+    }
+
+    @Test
+    fun `step never advances beyond target length`() {
+        val completed = TypewriterText.step(
+            TypewriterText.State(target = "abc", visibleLength = 2),
+            chunkSize = 99,
+        )
+
+        assertEquals(3, completed.visibleLength)
+        assertEquals("abc", completed.visibleText)
+        assertTrue(completed.isComplete)
+    }
 }

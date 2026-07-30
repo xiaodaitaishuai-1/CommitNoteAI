@@ -11,7 +11,6 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.VcsDataKeys
 import com.intellij.openapi.vcs.changes.Change
-import com.intellij.vcs.commit.CommitWorkflowUi
 import java.util.concurrent.atomic.AtomicBoolean
 
 class GenerateCommitMessageAction : DumbAwareAction() {
@@ -53,21 +52,16 @@ class GenerateCommitMessageAction : DumbAwareAction() {
             override fun run(indicator: ProgressIndicator) {
                 try {
                     val formatted = generateFormatted(project, currentDraft, changes, unversionedFiles)
-                    finish(workflowUi) {
-                        val dialog = CommitMessagePreviewDialog(
-                            project = project,
-                            originalDraft = currentDraft,
-                            generatedMessage = formatted,
-                            regenerateMessage = {
-                                generateFormatted(project, currentDraft, changes, unversionedFiles)
-                            },
+                    onUiThread {
+                        CommitMessageTypewriter.start(
+                            target = formatted,
+                            updateText = { text -> commitMessageUi.text = text },
+                            onCompleted = { generating.set(false) },
                         )
-                        if (dialog.showAndGet()) {
-                            commitMessageUi.text = dialog.editedMessage
-                        }
                     }
                 } catch (error: Throwable) {
-                    finish(workflowUi) {
+                    onUiThread {
+                        generating.set(false)
                         Messages.showErrorDialog(project, error.message ?: "生成提交记录失败", "CommitNoteAI")
                     }
                 }
@@ -85,15 +79,7 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         return CommitMessageFormatter.format(message)
     }
 
-    private fun finish(workflowUi: CommitWorkflowUi, onUiThread: () -> Unit) {
-        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
-            try {
-                onUiThread()
-            } finally {
-                if (generating.get()) {
-                    generating.set(false)
-                }
-            }
-        }
+    private fun onUiThread(onUiThread: () -> Unit) {
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(onUiThread)
     }
 }
