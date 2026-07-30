@@ -14,9 +14,9 @@ Replace the generated-message preview dialog with direct, animated insertion int
 
 ## Implementation
 
-`GenerateCommitMessageAction` will no longer construct or show `CommitMessagePreviewDialog`. Instead, it will use a Swing `Timer` on the UI thread to repeatedly advance `TypewriterText.State` and assign the current visible text to `CommitWorkflowUi.commitMessageUi.text`.
+Both commit entry points, `GenerateCommitMessageAction` and the legacy `CommitNotePanel`, will no longer construct or show `CommitMessagePreviewDialog`. Each will use a Swing `Timer` on the UI thread to repeatedly advance `TypewriterText.State` and assign the current visible text to its existing commit-message editor.
 
-The action remains guarded by its existing `generating` flag throughout generation and animation so the user cannot start a second generation before the first one has finished. The timer updates text in chunks rather than one character per tick, keeping long commit messages responsive while retaining the typewriter effect.
+Each entry point remains disabled throughout generation and animation so the user cannot start a second generation before the first one has finished. The timer updates text in chunks rather than one character per tick, keeping long commit messages responsive while retaining the typewriter effect.
 
 The preview dialog class is left in place for this change because it is not part of the active flow; deleting it is unnecessary scope expansion.
 
@@ -26,4 +26,4 @@ If generation fails, the existing commit message remains untouched and the exist
 
 ## Validation
 
-Update source-level action tests to prove the dialog is absent and inline typewriter insertion is used. Retain and extend unit tests for chunked `TypewriterText` progression, including non-positive chunk sizes and completion bounds.
+Update source-level action tests to prove the dialog is absent from both entry points and inline typewriter insertion is used. Retain and extend unit tests for chunked `TypewriterText` progression, including non-positive chunk sizes and completion bounds.
