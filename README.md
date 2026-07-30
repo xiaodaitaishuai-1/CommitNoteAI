@@ -57,7 +57,9 @@ Android Studio / IntelliJ 平台插件，用来在提交窗口里根据已选变
 .\gradlew.bat buildPlugin -PlocalIdePath="E:\go\GoLand 2026.1"
 ```
 
-打包产物在 `build/distributions/CommitNoteAI-0.1.9.zip`。
+打包产物在 `build/distributions/CommitNoteAI-x.x.x.zip`。
+
+最新的 打包产物是CommitNoteAI-0.1.9.zip ,每次打包要更新插件版本号。
 
 插件兼容从 `251` 系开始，也就是 Android Studio Narwhal / IntelliJ Platform 2025.1。
 
