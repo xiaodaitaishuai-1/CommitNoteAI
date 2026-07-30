@@ -16,14 +16,15 @@ class GenerateCommitMessageActionSourceTest {
     }
 
     @Test
-    fun `action previews generated message instead of directly replacing draft`() {
+    fun `action fills existing editor through typewriter without a preview dialog`() {
         val source = Files.readString(Path.of("src/main/kotlin/com/commitnoteai/vcs/GenerateCommitMessageAction.kt"))
 
         assertContains(source, "CommitNoteAI 正在生成提交记录")
-        assertContains(source, "CommitMessagePreviewDialog")
-        assertContains(source, "commitMessageUi.text = dialog.editedMessage")
-        assertFalse(source.contains("commitMessageUi.text = \"\""))
-        assertFalse(source.contains("startTypewriter"))
+        assertFalse(source.contains("CommitMessagePreviewDialog"))
+        assertFalse(source.contains("dialog.showAndGet()"))
+        assertContains(source, "CommitMessageTypewriter.start")
+        assertContains(source, "commitMessageUi.text = text")
+        assertContains(source, "generating.set(false)")
     }
 
     @Test
